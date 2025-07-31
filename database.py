@@ -4,10 +4,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 DB_PARAMS = {
-    "dbname": os.getenv("PG_DB", "bot1_4kgh"),
-    "user": os.getenv("PG_USER", "render1"),
-    "password": os.getenv("PG_PASSWORD", "HLB78MLx93WjdLdrALoeFNJlpEejVRQo"),
-    "host": os.getenv("PG_HOST", "dpg-d24qojndiees739ihc50-a.oregon-postgres.render.com"),
+    "dbname": os.getenv("PG_DB", "targibot3"),
+    "user": os.getenv("PG_USER", "targibot03"),
+    "password": os.getenv("PG_PASSWORD", "keXnxu56OvT1um1jdoIBUk9FAdVpr8rD"),
+    "host": os.getenv("PG_HOST", "dpg-d25p0u6r433s73eck3n0-a"),
     "port": os.getenv("PG_PORT", "5432"),
 }
 
