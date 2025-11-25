@@ -100,3 +100,10 @@ def get_channels():
                 ORDER BY date_added;
             """)
             return cur.fetchall()
+
+
+def delete_channel(chat_id):
+    with connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM channels WHERE id = %s;", (chat_id,))
+        conn.commit()
