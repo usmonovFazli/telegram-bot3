@@ -25,7 +25,7 @@ from database import (
 # --- Загрузка переменных окружения ---
 load_dotenv()
 TOKEN = os.getenv("BOT_TOKEN", "")
-AUTHORIZED_PASSWORD = os.getenv("BOT_PASSWORD", "")
+AUTHORIZED_PASSWORD = os.getenv("BOT_PASSWORD", "@12321231’m’@")
 LEAVE_PASSWORD = "1234"
 
 logging.basicConfig(level=logging.INFO)
