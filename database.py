@@ -2,6 +2,8 @@ import psycopg2
 import os
 from dotenv import load_dotenv
 from datetime import datetime
+import openpyxl
+from openpyxl.styles import PatternFill
 
 load_dotenv()
 
@@ -19,6 +21,7 @@ def connect():
 
 
 def init_db():
+    """Инициализация базы данных. Таблица создается только если её нет."""
     with connect() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -36,6 +39,7 @@ def init_db():
 
 
 def add_or_update_channel(chat_id, title, members, chat_type="unknown", link=""):
+    """Добавляет новый канал или обновляет существующий по id."""
     with connect() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -51,6 +55,7 @@ def add_or_update_channel(chat_id, title, members, chat_type="unknown", link="")
 
 
 def update_channel_status(chat_id, title=None, members=None, chat_type=None, link=None):
+    """Обновляет данные канала по id."""
     with connect() as conn:
         with conn.cursor() as cur:
             updates = []
@@ -73,14 +78,13 @@ def update_channel_status(chat_id, title=None, members=None, chat_type=None, lin
                 return
 
             values.append(chat_id)
-            query = f"""
-                UPDATE channels SET {', '.join(updates)} WHERE id = %s;
-            """
+            query = f"UPDATE channels SET {', '.join(updates)} WHERE id = %s;"
             cur.execute(query, values)
         conn.commit()
 
 
 def increment_video_count(chat_id):
+    """Увеличивает счетчик видео на 1."""
     with connect() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -92,6 +96,7 @@ def increment_video_count(chat_id):
 
 
 def get_channels():
+    """Возвращает все каналы/группы."""
     with connect() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -103,7 +108,36 @@ def get_channels():
 
 
 def delete_channel(chat_id):
+    """Удаляет конкретный канал по id (для функции 'Покинуть все чаты')."""
     with connect() as conn:
         with conn.cursor() as cur:
             cur.execute("DELETE FROM channels WHERE id = %s;", (chat_id,))
         conn.commit()
+
+
+def export_excel():
+    """Экспорт всей таблицы в Excel."""
+    channels = get_channels()
+    if not channels:
+        return None
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Каналы и группы"
+    ws.append(["ID", "Название", "Участники", "Отправлено видео", "Дата добавления", "Тип", "Ссылка"])
+
+    red_fill = PatternFill(start_color="FFCCCC", end_color="FFCCCC", fill_type="solid")
+    green_fill = PatternFill(start_color="CCFFCC", end_color="CCFFCC", fill_type="solid")
+
+    for row in channels:
+        id_, title, members, videos, date_added, chat_type, link = row
+        date_str = date_added.strftime('%Y-%m-%d %H:%M') if isinstance(date_added, datetime) else str(date_added)
+        data = [id_, title, members, videos, date_str, chat_type, link]
+        ws.append(data)
+        fill = red_fill if chat_type in ["left", "kicked"] else green_fill
+        for col in range(1, len(data)+1):
+            ws.cell(row=ws.max_row, column=col).fill = fill
+
+    file_path = "channels_export.xlsx"
+    wb.save(file_path)
+    return file_path
