@@ -77,7 +77,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # --- Отправка медиа и текста ---
 async def prompt_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not check_access(update.effective_user.id):
-        await update.message.reply_text("⛔️ У вас нет доступа. Введите /start и пароль.")
+        await update.message.reply_text("⛔️ У вас нет доступа. Введите /start и пароль. 12")
         return
     await update.message.reply_text("📤 Отправьте видео, фото или текст для рассылки.")
 
