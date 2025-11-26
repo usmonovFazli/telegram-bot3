@@ -35,6 +35,19 @@ def init_db():
                     link TEXT DEFAULT ''
                 );
             """)
+            # Добавляем колонку is_active, если её нет
+            cur.execute("""
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1
+                        FROM information_schema.columns
+                        WHERE table_name='channels' AND column_name='is_active'
+                    ) THEN
+                        ALTER TABLE channels ADD COLUMN is_active BOOLEAN DEFAULT true;
+                    END IF;
+                END$$;
+            """)
         conn.commit()
 
 
@@ -54,7 +67,7 @@ def add_or_update_channel(chat_id, title, members, chat_type="unknown", link="")
         conn.commit()
 
 
-def update_channel_status(chat_id, title=None, members=None, chat_type=None, link=None):
+def update_channel_status(chat_id, title=None, members=None, chat_type=None, link=None, is_active=None):
     """Обновляет данные канала по id."""
     with connect() as conn:
         with conn.cursor() as cur:
@@ -73,6 +86,9 @@ def update_channel_status(chat_id, title=None, members=None, chat_type=None, lin
             if link is not None:
                 updates.append("link = %s")
                 values.append(link)
+            if is_active is not None:
+                updates.append("is_active = %s")
+                values.append(is_active)
 
             if not updates:
                 return
@@ -95,20 +111,28 @@ def increment_video_count(chat_id):
         conn.commit()
 
 
-def get_channels():
-    """Возвращает все каналы/группы."""
+def get_channels(active_only=False):
+    """Возвращает все каналы/группы. Если active_only=True — только активные."""
     with connect() as conn:
         with conn.cursor() as cur:
-            cur.execute("""
-                SELECT id, title, members, videos, date_added, type, link
-                FROM channels
-                ORDER BY date_added;
-            """)
+            if active_only:
+                cur.execute("""
+                    SELECT id, title, members, videos, date_added, type, link
+                    FROM channels
+                    WHERE is_active = true
+                    ORDER BY date_added;
+                """)
+            else:
+                cur.execute("""
+                    SELECT id, title, members, videos, date_added, type, link
+                    FROM channels
+                    ORDER BY date_added;
+                """)
             return cur.fetchall()
 
 
 def delete_channel(chat_id):
-    """Удаляет конкретный канал по id (для функции 'Покинуть все чаты')."""
+    """Удаляет конкретный канал по id."""
     with connect() as conn:
         with conn.cursor() as cur:
             cur.execute("DELETE FROM channels WHERE id = %s;", (chat_id,))
@@ -141,3 +165,39 @@ def export_excel():
     file_path = "channels_export.xlsx"
     wb.save(file_path)
     return file_path
+
+
+# =========================
+#     ОПТИМИЗАЦИЯ БОТА
+# =========================
+def get_active_channels(limit=300):
+    """Возвращает активные чаты для пакетного обновления."""
+    conn = connect()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT id, title, members, videos, date_added, type
+        FROM channels
+        WHERE is_active = true
+        ORDER BY date_added
+        LIMIT %s
+    """, (limit,))
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+    return rows
+
+
+def update_chat_members(chat_id, members):
+    """Обновляет количество участников чата."""
+    with connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE channels SET members=%s WHERE id=%s", (members, chat_id))
+        conn.commit()
+
+
+def mark_chat_inactive(chat_id):
+    """Помечает чат как неактивный."""
+    with connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute("UPDATE channels SET is_active=false WHERE id=%s", (chat_id,))
+        conn.commit()

@@ -19,7 +19,10 @@ from database import (
     get_channels,
     increment_video_count,
     delete_channel,
-    export_excel
+    export_excel,
+    get_active_channels,
+    update_chat_members,
+    mark_chat_inactive
 )
 
 # --- Загрузка ENV ---
@@ -176,27 +179,92 @@ async def refresh_members(context: ContextTypes.DEFAULT_TYPE):
             update_channel_status(chat_id, chat_type="left")
 
 
+async def refresh_members(context, batch_size=300):
+    chats = get_active_channels(batch_size)
+
+    for chat in chats:
+        chat_id = chat[0]
+
+        try:
+            info = await context.bot.get_chat(chat_id)
+            members = info.get_members_count()
+            update_chat_members(chat_id, members)
+
+        except Exception:
+            # Чат больше не существует или бот был удалён
+            mark_chat_inactive(chat_id)
+
+            # Пытаемся выйти (если ещё возможно)
+            try:
+                await context.bot.leave_chat(chat_id)
+            except:
+                pass
+
+
+# --- Оптимизированное обновление и очистка чатов ---
+async def refresh_active_chats(context: ContextTypes.DEFAULT_TYPE, batch_size=100):
+    chats = get_channels(active_only=True)  # добавь в DB функцию фильтрации по is_active
+    total_chats = len(chats)
+    left_count = 0
+    for i in range(0, total_chats, batch_size):
+        batch = chats[i:i+batch_size]
+        for chat_id, title, members, videos, chat_type, _, link in batch:
+            try:
+                chat = await context.bot.get_chat(chat_id)
+                members = await context.bot.get_chat_member_count(chat_id)
+                update_channel_status(chat_id, title=chat.title, members=members, chat_type=chat.type, link=link)
+            except Exception as e:
+                logging.warning(f"❌ Чат {chat_id} недоступен: {e}")
+                update_channel_status(chat_id, chat_type="left", is_active=False)
+                try:
+                    await context.bot.leave_chat(chat_id)
+                    left_count += 1
+                    delete_channel(chat_id)
+                    logging.info(f"🚪 Бот вышел из несуществующего чата {chat_id}")
+                except Exception as e2:
+                    logging.warning(f"❌ Не удалось выйти из {chat_id}: {e2}")
+    logging.info(f"♻️ Обновление чатов завершено. Вышли из {left_count} недоступных чатов.")
+
+# --- Запуск регулярного обновления через JobQueue ---
+def schedule_chat_refresh(app, interval_minutes=30):
+    app.job_queue.run_repeating(refresh_active_chats, interval=interval_minutes*60, first=10)
+
+
+
 async def show_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not check_access(update.effective_user.id):
+    user_id = update.effective_user.id
+
+    # --- Проверка доступа ---
+    if not check_access(user_id):
         await update.message.reply_text("⛔️ Нет доступа.")
         return
 
+    # --- Обновление данных ---
     await update.message.reply_text("♻️ Обновляю данные...")
     await refresh_members(context)
 
+    # --- Получаем чаты из базы ---
     chats = get_channels()
+
     if not chats:
         await update.message.reply_text("⚠️ Нет подключённых чатов.")
         return
 
-    total_members = sum(c[2] or 0 for c in chats)
+    # --- Подсчёты ---
+    total = len(chats)
+    supergroups = sum(1 for c in chats if c[5] == "supergroup")
+    groups = sum(1 for c in chats if c[5] == "group")
+    max_videos = max((c[3] for c in chats), default=0)
 
+    # --- Итоговый вывод ---
     await update.message.reply_text(
-        f"📊 Статистика:\n"
-        f"• Чатов: {len(chats)}\n"
-        f"• Участников: {total_members}"
+        f"📊 *Общая статистика*\n\n"
+        f"📌 Всего чатов: {total}\n"
+        f"💬 Супергрупп: {supergroups}\n"
+        f"👥 Групп: {groups}\n"
+        f"🔥 Максимальное количество отправок в один чат: {max_videos}",
+        parse_mode="Markdown"
     )
-
 
 # ================================
 #     Э К С П О Р Т  E X C E L
