@@ -72,8 +72,18 @@ def check_access(user_id):
 
 # --- Обработка текста ---
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await handle_password(update, context)
+    # Если бот ожидает пароль – НЕ ПРОПУСКАЕМ дальше
+    if context.user_data.get("awaiting_password") or leave_confirmations.get(update.effective_user.id) == "password":
+        await handle_password(update, context)
+        return
 
+    # Если пароль не ожидается – проверяем доступ
+    if not check_access(update.effective_user.id):
+        await update.message.reply_text("⛔️ У вас нет доступа. Введите /start и пароль.")
+        return
+
+    # Если доступ есть – обрабатываем обычный текст как медиа
+    await handle_media(update, context)
 # --- Отправка медиа и текста ---
 async def prompt_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not check_access(update.effective_user.id):
