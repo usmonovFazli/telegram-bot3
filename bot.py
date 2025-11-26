@@ -83,7 +83,7 @@ async def prompt_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_media(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not check_access(update.effective_user.id):
-        await update.message.reply_text("⛔️ У вас нет доступа.")
+        await update.message.reply_text("⛔️ У вас нет доступа. 1 ")
         return
 
     chats = get_channels()
@@ -139,7 +139,7 @@ async def refresh_members(context: ContextTypes.DEFAULT_TYPE):
 # --- Статистика ---
 async def show_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not check_access(update.effective_user.id):
-        await update.message.reply_text("⛔️ У вас нет доступа.")
+        await update.message.reply_text("⛔️ У вас нет доступа. 2 ")
         return
 
     await update.message.reply_text("♻️ Обновляю информацию о каналах...")
@@ -161,7 +161,7 @@ async def show_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # --- Экспорт Excel ---
 async def export_excel_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not check_access(update.effective_user.id):
-        await update.message.reply_text("⛔️ У вас нет доступа.")
+        await update.message.reply_text("⛔️ У вас нет доступа. 3 ")
         return
 
     await update.message.reply_text("📦 Подготавливаю Excel...")
@@ -180,7 +180,7 @@ async def export_excel_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 async def initiate_leave(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     if not check_access(user_id):
-        await update.message.reply_text("⛔️ У вас нет доступа.")
+        await update.message.reply_text("⛔️ У вас нет доступа. 4")
         return
 
     leave_confirmations[user_id] = "confirm"
