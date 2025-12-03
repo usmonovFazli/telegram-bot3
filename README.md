@@ -1,1 +1,1 @@
-# telegram-bot1
+# telegram-bot3 mahalalar uchun bot
